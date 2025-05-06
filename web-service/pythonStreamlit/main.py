@@ -125,8 +125,8 @@ if st.button("Сравнить изображения"):
         }
 
     response = requests.post(
-        f"http://two154-project.onrender.com/api/methods/?method={selected_method}",
-        # f"http://127.0.0.1:8000/api/methods/?method={selected_method}",
+        f"https://two154-project.onrender.com/api/methods/?method={selected_method}",
+        # f"https://127.0.0.1:8000/api/methods/?method={selected_method}",
         json=payload  # <-- отправляем как JSON
     )
 
