@@ -51,26 +51,27 @@ if uploaded_files and len(uploaded_files) == 2:
 
         page = int(page_number)
 
-        converted_images = []
-
-        for pdf_path in file_paths:
-            try:
-                output_dir = tempfile.mkdtemp()
-                convert_pdf_to_images(pdf_path, output_dir, image_format="png", dpi=150, page=page)
-                # Найти конвертированное изображение
-                image_files = [os.path.join(output_dir, f) for f in os.listdir(output_dir) if f.endswith(".png")]
-                if image_files:
-                    converted_images.append(image_files[0])
-                else:
-                    st.error(f"Не удалось извлечь страницу {page} из {pdf_path}")
+        if st.button("Извлечь страницу из PDF"):
+            st.session_state.converted_images = []
+            for pdf_path in file_paths:
+                try:
+                    output_dir = tempfile.mkdtemp()
+                    convert_pdf_to_images(pdf_path, output_dir, image_format="png", dpi=72, page=page)
+                    # Найти конвертированное изображение
+                    image_files = [os.path.join(output_dir, f) for f in os.listdir(output_dir) if f.endswith(".png")]
+                    if image_files:
+                        st.session_state.converted_images.append(image_files[0])
+                    else:
+                        st.error(f"Не удалось извлечь страницу {page} из {pdf_path}")
+                        st.stop()
+                except ValueError as e:
+                    st.error(f"Ошибка: {str(e)}")
                     st.stop()
-            except ValueError as e:
-                st.error(f"Ошибка: {str(e)}")
-                st.stop()
 
-        # Отображаем изображения
-        st.image(converted_images[0], caption="Страница из PDF 1", use_container_width=True)
-        st.image(converted_images[1], caption="Страница из PDF 2", use_container_width=True)
+            if len(st.session_state.converted_images) == 2:
+                # Отображаем изображения
+                st.image(st.session_state.converted_images[0], caption="Страница из PDF 1", use_container_width=True)
+                st.image(st.session_state.converted_images[1], caption="Страница из PDF 2", use_container_width=True)
 
     else:
         # Если изображения
@@ -103,12 +104,24 @@ captions = {
     "diff": "Разница между изображениями",
 }
 
+def resize_image(path, max_size=(1024, 1024)):
+    with Image.open(path) as img:
+        img.thumbnail(max_size)
+        buffer = BytesIO()
+        img.save(buffer, format="PNG")
+        return base64.b64encode(buffer.getvalue()).decode("utf-8")
+
+
 if st.button("Сравнить изображения"):
+    if file_type == "PDF-файлы" and len(st.session_state.converted_images) != 2:
+        st.error("Нажмите Извлечь страницу из PDF'")
+        st.stop()
+
     if file_type == "PDF-файлы":
         # Используем уже сконвертированные пути
         payload = {
-            "img1_path": converted_images[0],
-            "img2_path": converted_images[1],
+            "img1": resize_image(st.session_state.converted_images[0]),
+            "img2": resize_image(st.session_state.converted_images[1]),
         }
     else:
         # Если обычные изображения — создаем временные файлы
@@ -120,13 +133,12 @@ if st.button("Сравнить изображения"):
             temp_paths.append(temp_file.name)
 
         payload = {
-            "img1_path": temp_paths[0],
-            "img2_path": temp_paths[1],
+            "img1": resize_image(temp_paths[0]),
+            "img2": resize_image(temp_paths[1]),
         }
 
     response = requests.post(
         f"https://two154-project.onrender.com/api/methods/?method={selected_method}",
-        # f"https://127.0.0.1:8000/api/methods/?method={selected_method}",
         json=payload  # <-- отправляем как JSON
     )
 
@@ -141,7 +153,5 @@ if st.button("Сравнить изображения"):
             st.error(f"Ошибка: {response.json().get('error')}")
         except Exception:
             st.error("Ошибка при получении ответа от сервера.")
-
-
 
 
