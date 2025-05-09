@@ -3,10 +3,11 @@ from rest_framework.request import Request
 
 import cv2
 import base64
+import numpy as np
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from app.algorithm import detect_differences, pixel_pairwise, align_with_phase_correlation
+from app.algorithm import detect_differences, pixel_pairwise, align_with_phase_correlation, visualize_difference
 
 def decode_and_save_image(base64_str):
     img_data = base64.b64decode(base64_str)
@@ -15,17 +16,47 @@ def decode_and_save_image(base64_str):
     temp_file.flush()
     return temp_file.name # путь к файлу
 
+
+
 class AlgorithmsPostView(APIView):
     def post(self, request: Request):
-        method = request.query_params.get("method")
-        if method == "one":
-            return self.method_one()
-        if method == "two":
-            return self.method_two()
-        if method == "three":
-            return self.method_three()
-        return None
+        alignment_method = request.query_params.get("method")
+        print(alignment_method)
 
+        img1_b64 = self.request.data.get("img1")
+        img2_b64 = self.request.data.get("img2")
+
+        if not img1_b64 or not img2_b64:
+            return Response({"error": "Both image paths are required"}, status=400)
+
+        img1_path = decode_and_save_image(img1_b64)
+        img2_path = decode_and_save_image(img2_b64)
+
+        if img1_path is None or img2_path is None:
+            return Response({"error": "Не удалось прочитать одно из изображений"}, status=400)
+
+        img2 = None
+        if alignment_method == "phase_correlation":
+            img2, _ = align_with_phase_correlation(img1_path, img2_path)
+            if img2 is None:
+                return Response({"error": "Failed to calculate difference"}, status=400)
+
+        elif alignment_method == "sift":
+            img2, _ = detect_differences(img1_path, img2_path)
+            if img2 is None:
+                return Response({"error": "Недостаточно совпадений для гомографии"}, status=400)
+            img2 = cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY).astype(np.float32)
+
+        img1 = cv2.imread(img1_path, cv2.IMREAD_GRAYSCALE).astype(np.float32)
+        result = visualize_difference(img1, img2)
+        _, changed_buffer = cv2.imencode('.jpg', result)
+        result_b64 = base64.b64encode(changed_buffer).decode("utf-8")
+        
+        return Response({
+            "images": {
+                "changed": result_b64,
+            }
+        })
 
     def method_one(self):
         img1_b64 = self.request.data.get("img1")

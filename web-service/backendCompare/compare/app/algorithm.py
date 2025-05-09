@@ -31,7 +31,7 @@ def detect_differences(img1_path, img2_path):
         _, mask_diff = cv2.threshold(gray_diff, 30, 255, cv2.THRESH_BINARY)
         mask_rgb = cv2.cvtColor(mask_diff, cv2.COLOR_GRAY2BGR)
         changed_area = cv2.bitwise_and(aligned_img2, mask_rgb)
-
+        
         return aligned_img2, changed_area
     else:
         return None, None
@@ -67,7 +67,7 @@ def align_with_phase_correlation(ref_path, target_path, out_path=None, display=F
         aligned (ndarray): The aligned target image.
         shift (tuple): (dx, dy) translation applied to the target.
     """
-
+    
     ref = cv2.imread(ref_path, cv2.IMREAD_GRAYSCALE).astype(np.float32)
     target = cv2.imread(target_path, cv2.IMREAD_GRAYSCALE).astype(np.float32)
 
@@ -99,3 +99,17 @@ def align_with_phase_correlation(ref_path, target_path, out_path=None, display=F
         cv2.destroyAllWindows()
 
     return aligned, (dx, dy)
+
+def visualize_difference(img1, img2):
+    if img1 is None or img2 is None:
+        return None
+
+    img2 = cv2.resize(img2, (img1.shape[1], img1.shape[0]))
+    diff = cv2.absdiff(img1, img2)
+    _, diff_thresh = cv2.threshold(diff, 30, 255, cv2.THRESH_BINARY)
+    
+    result = cv2.cvtColor(img1, cv2.COLOR_GRAY2BGR)
+    result[(img1 > img2) & (diff_thresh == 255)] = [0, 0, 255]  # red
+    result[(img2 > img1) & (diff_thresh == 255)] = [255, 0, 0]  # blue
+    
+    return result
