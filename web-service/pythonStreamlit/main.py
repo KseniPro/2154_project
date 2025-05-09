@@ -144,31 +144,10 @@ if st.button("Сравнить изображения"):
 
     if response.status_code == 200:
         data = response.json()
-        
-        caption_container = st.container()
-        with caption_container:
-            st.markdown("""
-            **Обозначения на результирующем изображении:**
-            - <span style='color:red'>Красный</span>: пиксели, которые есть в первом изображении, но отсутствуют во втором
-            - <span style='color:blue'>Синий</span>: пиксели, которые есть во втором изображении, но отсутствуют в первом
-            """, unsafe_allow_html=True)
-        
         for key, b64_img in data.get("images", {}).items():
             img_data = base64.b64decode(b64_img)
             img = Image.open(BytesIO(img_data))
-            
-            if key == "diff":
-                st.image(
-                    img, 
-                    caption="Результат сравнения с выделенными различиями", 
-                    use_container_width=True
-                )
-            else:
-                st.image(
-                    img, 
-                    caption=captions.get(key, key), 
-                    use_container_width=True
-                )
+            st.image(img, caption=captions.get(key, key), use_container_width=True)
     else:
         try:
             st.error(f"Ошибка: {response.json().get('error')}")
