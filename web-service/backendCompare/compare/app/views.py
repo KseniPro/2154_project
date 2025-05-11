@@ -16,7 +16,36 @@ def decode_and_save_image(base64_str):
     temp_file.flush()
     return temp_file.name # путь к файлу
 
+def add_legend(image):
+    # Parameters
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    font_scale = 0.6
+    font_thickness = 1
+    box_height = 30
+    box_width = 20
+    spacing = 10
+    text_offset = 10
+    text1 = "Pixels present in the first image and missing in the second image"
+    text2 = "Pixels present in the second image and missing in the first image"
 
+    legend_height = 2 * (box_height + spacing)
+
+    # Create a white canvas for the legend
+    legend = np.ones((legend_height, image.shape[1], 3), dtype=np.uint8) * 255
+
+    # First legend entry (blue)
+    y1 = spacing
+    cv2.rectangle(legend, (spacing, y1), (spacing + box_width, y1 + box_height), (255, 0, 0), -1)
+    cv2.putText(legend, text1, (spacing + box_width + text_offset, y1 + box_height - 8), font, font_scale, (0, 0, 0), font_thickness)
+
+    # Second legend entry (red)
+    y2 = y1 + box_height + spacing
+    cv2.rectangle(legend, (spacing, y2), (spacing + box_width, y2 + box_height), (0, 0, 255), -1)
+    cv2.putText(legend, text2, (spacing + box_width + text_offset, y2 + box_height - 8), font, font_scale, (0, 0, 0), font_thickness)
+
+    # Append the legend to the bottom of the image
+    result = np.vstack((image, legend))
+    return result
 
 class AlgorithmsPostView(APIView):
     def post(self, request: Request):
@@ -49,6 +78,7 @@ class AlgorithmsPostView(APIView):
 
         img1 = cv2.imread(img1_path, cv2.IMREAD_GRAYSCALE).astype(np.float32)
         result = visualize_difference(img1, img2)
+        result = add_legend(result)
         _, changed_buffer = cv2.imencode('.jpg', result)
         result_b64 = base64.b64encode(changed_buffer).decode("utf-8")
         
